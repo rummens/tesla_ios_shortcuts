@@ -1,0 +1,4 @@
+azure-functions
+pydantic
+requests
+python-telegram-bot

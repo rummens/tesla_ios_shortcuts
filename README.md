@@ -84,7 +84,7 @@ In order to import the shortcuts, you will first need to allow the import of unt
 
 * Start Remote Drive
   * Wakes the vevhicle (if needed) and starts a remote driving session
-  
+ 
 ### FAQs
 
 * What can you do if you receive error messages like the one below?
@@ -102,3 +102,33 @@ In order to import the shortcuts, you will first need to allow the import of unt
   * When a shortcut is executed, the authentication token is sent to the Cloud API service using TLS where it is then used to communicate with Tesla. The authentication token is never logged or recorded in any way, shape or form.
   * NOTE: I do NOT log or record any usage data, nor do I log or record any of the generated Tesla API tokens.
   
+  
+## Hosting Relay API on Azure Functions
+To ensure you are in full control of the communication between your iOS device and the Tesla API, you can host the 
+required relay API yourself. This repo contains an example deployed on the [Azure Functions](https://azure.microsoft.com/en-us/services/functions/#features), which should result in no cost depending on your usage. In any event please consult the latest Azure pricing information.
+
+### Setup Azure Function
+To set it up follow the [get started guide](https://docs.microsoft.com/en-us/azure/azure-functions/functions-create-first-azure-function-azure-cli?tabs=bash%2Cbrowser&pivots=programming-language-python) 
+and copy paste the code found [here](/azure-function/TeslaAPI) into the created function folder. 
+Its encouraged to name the function _TeslaAPI_, otherwise you might have to adapt the _function.json_
+
+### Modify Shortcut
+Download and open the _Generate Tesla Token_ shortcut as described above. Scroll down and modify the value for 
+the ``url`` variable, replacing it with the endpoint of your Azure function. Rerun the shortcut to ensure the correct url is put into your config file inside iCloud Drive.
+
+![azure_functions_token_shortcut](azure_functions_token_shortcut.jpeg)
+
+
+### Optional Telegram integration
+Optionally you can receive more details on errors via a Telegram Bot. Follow these steps to set it up:
+
+1. Create a new Telegram Bot using the BotFather as explained here. Take note of the Http Token.
+2. Obtain the chat id by writing any message to your new bot and visiting ``https://api.telegram.org/bot[HTTP-TOKEN]/getUpdates``
+3. Create a file called ``telegram_config.json`` in the _TeslaAPI_ folder with the following content (replace with your actual values):
+
+```
+{
+  "token": "<YOUR HTTP TOKEN>",
+  "chatId": "<YOUR CHAT ID>"
+}
+```
