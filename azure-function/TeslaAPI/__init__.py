@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 import json
 import requests
 import azure.functions as func
@@ -12,6 +13,7 @@ logging.basicConfig(level=logging.INFO)
 
 TESLA_API_BASE = "https://owner-api.teslamotors.com/api/1/vehicles"
 TELEGRAM_CONFIG = os.path.join(os.path.dirname(os.path.realpath(__file__)), "telegram_config.json")
+TIMEOUT_WAKEUP = 30
 TELEGRAM_BOT = None
 TELEGRAM_CHAT_ID = None
 COMMAND_ADAPTER = {
@@ -49,6 +51,7 @@ class RequestModel(BaseModel):
     INPUT_CMD: str
     VEHICLE_TEMP: Optional[str] = None
     VEHICLE_CHARGE_LIMIT: Optional[str] = None
+    FORCE_WAKEUP: Optional[bool] = False
 
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
@@ -76,6 +79,12 @@ def parse_post_request(body: str):
 
     if model.INPUT_CMD not in COMMAND_ADAPTER:
         return respond("Unknown command %s" % model.INPUT_CMD, status_code=400, command=model.INPUT_CMD)
+
+    if model.FORCE_WAKEUP:
+        try:
+            force_wakeup(model)
+        except (TimeoutError, KeyError) as e:
+            return respond({"Error while waking up": str(e)}, status_code=502, command=model.INPUT_CMD)
 
     command_translated = COMMAND_ADAPTER[model.INPUT_CMD]
     logging.info(os.path.join(TESLA_API_BASE, model.VEHICLE_ID, "command", command_translated))
@@ -139,6 +148,33 @@ def setup_telegram():
             data = json.load(json_file)
             TELEGRAM_BOT = Bot(token=data["token"])
             TELEGRAM_CHAT_ID = data["chatId"]
+
+
+def force_wakeup(model: RequestModel):
+
+    tesla_awake = __is_tesla_awake(model)
+    counter = 0
+    while not tesla_awake:
+        time.sleep(2)
+        tesla_awake = __is_tesla_awake(model)
+
+        counter += 2
+        if counter > TIMEOUT_WAKEUP:
+            raise TimeoutError("Waited %i seconds for Tesla to wakeup but it didn't!" % TIMEOUT_WAKEUP)
+
+    # wait 2 seconds before executing next command (give Tesla to actually wakeup)
+    time.sleep(2)
+
+
+def __is_tesla_awake(model: RequestModel):
+    resp = requests.post(os.path.join(TESLA_API_BASE, model.VEHICLE_ID, "wake_up"),
+                         headers={"Authorization": "Bearer %s" % model.TOKEN})
+    resp_content = resp.json()
+
+    if "response" not in resp_content or "state" not in resp_content["response"]:
+        raise KeyError("Wakeup Response looks unfamiliar: %s" % resp_content)
+
+    return resp_content["response"]["state"] == "online"
 
 
 def respond(message, command: str = "", status_code: int = 200):

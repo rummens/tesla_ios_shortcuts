@@ -118,6 +118,11 @@ the ``url`` variable, replacing it with the endpoint of your Azure function. Rer
 
 ![azure_functions_token_shortcut](azure_functions_token_shortcut.jpeg)
 
+### Force Wakeup
+In case you want to force your Tesla to wakeup when executing a Shortcut, set a new _Boolean_ field to the 
+*Get contents of URL* box, called ``FORCE_WAKEUP``:
+![azure_functions_force_wakeup](azure_functions_force_wakeup.jpg)
+
 
 ### Optional Telegram integration
 Optionally you can receive more details on errors via a Telegram Bot. Follow these steps to set it up:
